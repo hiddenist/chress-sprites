@@ -18,6 +18,8 @@ Character naming:
 from PIL import Image
 import os
 import sys
+import subprocess
+import shutil
 
 
 def load_character_names(sheet_path):
@@ -63,13 +65,44 @@ def sanitize_filename(name):
     return safe_name
 
 
-def extract_sprites_from_sheet(sheet_path, output_dir):
+def check_optipng_available():
+    """
+    Check if optipng is available on the system.
+
+    Returns:
+        bool: True if optipng is available, False otherwise
+    """
+    return shutil.which('optipng') is not None
+
+
+def optimize_png_with_optipng(file_path):
+    """
+    Optimize a PNG file using optipng.
+
+    Args:
+        file_path: Path to the PNG file to optimize
+    """
+    try:
+        # Use -o2 for good compression without being too slow
+        # -quiet to suppress output
+        subprocess.run(
+            ['optipng', '-o2', '-quiet', file_path],
+            check=True,
+            capture_output=True
+        )
+    except subprocess.CalledProcessError:
+        # If optipng fails, just continue - the file is already saved
+        pass
+
+
+def extract_sprites_from_sheet(sheet_path, output_dir, use_optipng=False):
     """
     Extract all sprites and portraits from a sprite sheet.
 
     Args:
         sheet_path: Path to the sprite sheet image
         output_dir: Directory to save extracted images
+        use_optipng: Whether to use optipng for additional optimization
     """
     # Load the sprite sheet
     sheet = Image.open(sheet_path)
@@ -91,6 +124,9 @@ def extract_sprites_from_sheet(sheet_path, output_dir):
 
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
+
+    # Track files for batch optipng optimization
+    files_to_optimize = []
 
     # Extract sprites from first column (16x16 sprites)
     print(f"Processing {sheet_path}...")
@@ -127,8 +163,13 @@ def extract_sprites_from_sheet(sheet_path, output_dir):
                 sprite_name = f"{base_name}_row{row}_sprite{sprite_num}.png"
 
             sprite_path = os.path.join(output_dir, sprite_name)
-            sprite.save(sprite_path)
+            # Save with optimization: optimize=True for smaller file size
+            sprite.save(sprite_path, optimize=True)
             print(f"  Saved: {sprite_name}")
+
+            # Track for optipng optimization
+            if use_optipng:
+                files_to_optimize.append(sprite_path)
 
             character_index += 1
 
@@ -158,10 +199,22 @@ def extract_sprites_from_sheet(sheet_path, output_dir):
                 portrait_name = f"{base_name}_row{row}_sprite{sprite_index}_portrait.png"
 
             portrait_path = os.path.join(output_dir, portrait_name)
-            portrait.save(portrait_path)
+            # Save with optimization: optimize=True for smaller file size
+            portrait.save(portrait_path, optimize=True)
             print(f"  Saved: {portrait_name}")
 
+            # Track for optipng optimization
+            if use_optipng:
+                files_to_optimize.append(portrait_path)
+
             character_index += 1
+
+    # Run optipng optimization if requested
+    if use_optipng and files_to_optimize:
+        print(f"Optimizing {len(files_to_optimize)} files with optipng...")
+        for file_path in files_to_optimize:
+            optimize_png_with_optipng(file_path)
+        print("Optimization complete!")
 
     print(f"Extraction complete for {sheet_path}!")
 
@@ -184,12 +237,23 @@ def main():
     if len(sys.argv) > 1:
         output_dir = sys.argv[1]
 
+    # Check if optipng is available
+    use_optipng = check_optipng_available()
+    if use_optipng:
+        print("✓ optipng detected - will use for additional optimization")
+    else:
+        print("⚠ optipng not found - using basic PNG optimization only")
+        print("  Install optipng for better compression:")
+        print("    macOS:   brew install optipng")
+        print("    Linux:   apt-get install optipng  (or yum/pacman)")
+        print("    Windows: choco install optipng  (or download from http://optipng.sourceforge.net/)")
+
     print(f"Found {len(sprite_sheets)} sprite sheet(s)")
     print(f"Output directory: {output_dir}\n")
 
     # Process each sheet
     for sheet_path in sorted(sprite_sheets):
-        extract_sprites_from_sheet(sheet_path, output_dir)
+        extract_sprites_from_sheet(sheet_path, output_dir, use_optipng)
         print()
 
     print(f"All done! Extracted sprites saved to '{output_dir}/' directory")
