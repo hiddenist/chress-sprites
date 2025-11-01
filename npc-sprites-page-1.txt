@@ -1,12 +1,12 @@
-dawrg
-korg
-plent
-flound
-pin
+merki
+penni
+pluma
+blotter
+raddle
 fork
-rok
-lef
-dargon
+slate
+burin
+calamus
 nib
 felt
 crayn
@@ -17,4 +17,4 @@ squig
 forge
 mark
 penne
-duk
+quill
