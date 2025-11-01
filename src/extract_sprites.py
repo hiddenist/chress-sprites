@@ -95,7 +95,7 @@ def optimize_png_with_optipng(file_path):
         pass
 
 
-def extract_sprites_from_sheet(sheet_path, output_dir, use_optipng=False):
+def extract_npc_sprites_from_sheet(sheet_path, output_dir, use_optipng=False):
     """
     Extract all sprites and portraits from a sprite sheet.
 
@@ -224,13 +224,14 @@ def main():
     """Main function to process all sprite sheets in the current directory."""
     # Default output directory
     output_dir = "extracted_sprites"
+    spritesheet_dir = "spritesheets"
 
     # Find all sprite sheet files
-    sprite_sheets = [f for f in os.listdir(".") if f.startswith("npc-sprites-") and
+    npc_sprite_sheets = [os.path.join(spritesheet_dir, f) for f in os.listdir(spritesheet_dir) if f.startswith("npcs-") and
                      (f.endswith(".png") or f.endswith(".webp") or f.endswith(".jpg"))]
 
-    if not sprite_sheets:
-        print("No sprite sheets found matching pattern 'npc-sprites-*'")
+    if not npc_sprite_sheets:
+        print("No sprite sheets found matching pattern 'npcs-*'")
         print("Usage: python extract_sprites.py [output_directory]")
         return
 
@@ -249,12 +250,14 @@ def main():
         print("    Linux:   apt-get install optipng  (or yum/pacman)")
         print("    Windows: choco install optipng  (or download from http://optipng.sourceforge.net/)")
 
-    print(f"Found {len(sprite_sheets)} sprite sheet(s)")
+    print(f"Found {len(npc_sprite_sheets)} sprite sheet(s)")
     print(f"Output directory: {output_dir}\n")
 
+    print(f"Sheet names: {', '.join(npc_sprite_sheets)}\n")
+
     # Process each sheet
-    for sheet_path in sorted(sprite_sheets):
-        extract_sprites_from_sheet(sheet_path, output_dir, use_optipng)
+    for sheet_path in sorted(npc_sprite_sheets):
+        extract_npc_sprites_from_sheet(sheet_path, output_dir, use_optipng)
         print()
 
     print(f"All done! Extracted sprites saved to '{output_dir}/' directory")
