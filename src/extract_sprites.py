@@ -124,6 +124,7 @@ def extract_sprites_from_sheet(sheet_path, output_dir, use_optipng=False):
 
     # Create output directory if it doesn't exist
     os.makedirs(output_dir, exist_ok=True)
+    os.makedirs(os.path.join(output_dir, "portraits"), exist_ok=True)
 
     # Track files for batch optipng optimization
     files_to_optimize = []
@@ -158,14 +159,14 @@ def extract_sprites_from_sheet(sheet_path, output_dir, use_optipng=False):
             # Determine filename
             if character_names and character_index < len(character_names):
                 char_name = sanitize_filename(character_names[character_index])
-                sprite_name = f"{char_name}face.png"
+                sprite_name = f"{char_name}.png"
             else:
                 sprite_name = f"{base_name}_row{row}_sprite{sprite_num}.png"
 
             sprite_path = os.path.join(output_dir, sprite_name)
             # Save with optimization: optimize=True for smaller file size
             sprite.save(sprite_path, optimize=True)
-            print(f"  Saved: {sprite_name}")
+            print(f"  Saved sprite: {sprite_name}")
 
             # Track for optipng optimization
             if use_optipng:
@@ -194,14 +195,14 @@ def extract_sprites_from_sheet(sheet_path, output_dir, use_optipng=False):
             # Determine filename
             if character_names and character_index < len(character_names):
                 char_name = sanitize_filename(character_names[character_index])
-                portrait_name = f"{char_name}.png"
+                portrait_name = f"{char_name}face.png"
             else:
                 portrait_name = f"{base_name}_row{row}_sprite{sprite_index}_portrait.png"
 
-            portrait_path = os.path.join(output_dir, portrait_name)
+            portrait_path = os.path.join(output_dir, "portraits", portrait_name)
             # Save with optimization: optimize=True for smaller file size
             portrait.save(portrait_path, optimize=True)
-            print(f"  Saved: {portrait_name}")
+            print(f"  Saved portrait: {portrait_name}")
 
             # Track for optipng optimization
             if use_optipng:
