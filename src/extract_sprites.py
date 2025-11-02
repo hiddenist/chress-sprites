@@ -30,7 +30,7 @@ def load_character_names(sheet_path):
         sheet_path: Path to the sprite sheet image
 
     Returns:
-        List of character names (20 names expected), or None if file doesn't exist
+        List of character names (up to 20 names expected), or None if file doesn't exist
     """
     base_name = os.path.splitext(sheet_path)[0]
     names_file = f"{base_name}.txt"
@@ -41,9 +41,9 @@ def load_character_names(sheet_path):
     with open(names_file, 'r') as f:
         names = [line.strip() for line in f if line.strip()]
 
-    if len(names) != 20:
-        print(f"Warning: Expected 20 names in {names_file}, found {len(names)}")
-        print("Names should be provided for all 20 characters (5 rows × 4 sprites)")
+    if len(names) > 20:
+        print(f"Warning: Expected max of 20 names in {names_file}, found {len(names)}")
+        print("Names should be provided for all characters (5 rows × 4 sprites)")
 
     return names
 
@@ -73,6 +73,30 @@ def check_optipng_available():
         bool: True if optipng is available, False otherwise
     """
     return shutil.which('optipng') is not None
+
+
+def is_fully_transparent(image):
+    """
+    Check if an image is completely transparent (all pixels have alpha = 0).
+
+    Args:
+        image: PIL Image object
+
+    Returns:
+        bool: True if the image is fully transparent, False otherwise
+    """
+    # Convert to RGBA if not already
+    if image.mode != 'RGBA':
+        image = image.convert('RGBA')
+
+    # Get the alpha channel
+    alpha = image.getchannel('A')
+
+    # Check if all alpha values are 0 (fully transparent)
+    # getextrema() returns (min, max) of the channel
+    min_alpha, max_alpha = alpha.getextrema()
+
+    return max_alpha == 0
 
 
 def optimize_png_with_optipng(file_path):
@@ -129,6 +153,12 @@ def extract_npc_sprites_from_sheet(sheet_path, output_dir, use_optipng=False):
     # Track files for batch optipng optimization
     files_to_optimize = []
 
+    # Track statistics
+    sprites_saved = 0
+    sprites_skipped = 0
+    portraits_saved = 0
+    portraits_skipped = 0
+
     # Extract sprites from first column (16x16 sprites)
     print(f"Processing {sheet_path}...")
     print("Extracting 16x16 sprites from first column...")
@@ -156,6 +186,18 @@ def extract_npc_sprites_from_sheet(sheet_path, output_dir, use_optipng=False):
             # Extract 16x16 sprite
             sprite = sheet.crop((x, y, x + 16, y + 16))
 
+            # Check if sprite is fully transparent
+            if is_fully_transparent(sprite):
+                # Determine character name for better logging
+                if character_names and character_index < len(character_names):
+                    char_name = character_names[character_index]
+                    print(f"  Skipped empty sprite: {char_name}")
+                else:
+                    print(f"  Skipped empty sprite: row{row}_sprite{sprite_num}")
+                sprites_skipped += 1
+                character_index += 1
+                continue
+
             # Determine filename
             if character_names and character_index < len(character_names):
                 char_name = sanitize_filename(character_names[character_index])
@@ -167,6 +209,7 @@ def extract_npc_sprites_from_sheet(sheet_path, output_dir, use_optipng=False):
             # Save with optimization: optimize=True for smaller file size
             sprite.save(sprite_path, optimize=True)
             print(f"  Saved sprite: {sprite_name}")
+            sprites_saved += 1
 
             # Track for optipng optimization
             if use_optipng:
@@ -188,6 +231,19 @@ def extract_npc_sprites_from_sheet(sheet_path, output_dir, use_optipng=False):
             # Extract 32x32 portrait
             portrait = sheet.crop((x, y, x + 32, y + 32))
 
+            # Check if portrait is fully transparent
+            if is_fully_transparent(portrait):
+                # Determine character name for better logging
+                if character_names and character_index < len(character_names):
+                    char_name = character_names[character_index]
+                    print(f"  Skipped empty portrait: {char_name}")
+                else:
+                    sprite_index = (col - 1) + 1
+                    print(f"  Skipped empty portrait: row{row}_sprite{sprite_index}")
+                portraits_skipped += 1
+                character_index += 1
+                continue
+
             # Calculate which sprite this portrait corresponds to
             # Each row has 4 sprites, and 4 portraits (one per column)
             sprite_index = (col - 1) + 1  # portraits 1-4 for sprites 1-4
@@ -203,6 +259,7 @@ def extract_npc_sprites_from_sheet(sheet_path, output_dir, use_optipng=False):
             # Save with optimization: optimize=True for smaller file size
             portrait.save(portrait_path, optimize=True)
             print(f"  Saved portrait: {portrait_name}")
+            portraits_saved += 1
 
             # Track for optipng optimization
             if use_optipng:
@@ -217,7 +274,10 @@ def extract_npc_sprites_from_sheet(sheet_path, output_dir, use_optipng=False):
             optimize_png_with_optipng(file_path)
         print("Optimization complete!")
 
-    print(f"Extraction complete for {sheet_path}!")
+    # Print summary
+    print(f"\nExtraction complete for {sheet_path}!")
+    print(f"  Sprites: {sprites_saved} saved, {sprites_skipped} skipped (empty)")
+    print(f"  Portraits: {portraits_saved} saved, {portraits_skipped} skipped (empty)")
 
 
 def main():
