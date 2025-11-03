@@ -3,7 +3,7 @@ goma
 skrib
 polly
 gelinka
-guy
+stick
 hoja
 highlight
 pulp
@@ -12,3 +12,9 @@ scrape
 redakt
 calli
 block
+flex
+scroll
+wash
+shade
+bit
+capybara
