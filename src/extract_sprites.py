@@ -17,9 +17,10 @@ Character naming:
 
 from PIL import Image
 import os
-import sys
 import subprocess
 import shutil
+import glob
+import argparse
 
 
 def load_character_names(sheet_path):
@@ -282,22 +283,82 @@ def extract_npc_sprites_from_sheet(sheet_path, output_dir, use_optipng=False):
 
 def main():
     """Main function to process all sprite sheets in the current directory."""
-    # Default output directory
-    output_dir = "extracted_sprites"
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(
+        description='Extract sprites from NPC sprite sheets',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Process all sprite sheets in spritesheets/ directory
+  python extract_sprites.py
+
+  # Process all sprite sheets, output to custom directory
+  python extract_sprites.py --output my_sprites
+
+  # Process only specific files
+  python extract_sprites.py --files spritesheets/npcs-1.webp
+  python extract_sprites.py --files spritesheets/npcs-1.webp spritesheets/npcs-2.webp
+
+  # Process files matching a pattern (glob)
+  python extract_sprites.py --files "spritesheets/npcs-*.webp"
+  python extract_sprites.py --files "spritesheets/npcs-[123].webp"
+        """
+    )
+    parser.add_argument(
+        '--output', '-o',
+        default='extracted_sprites',
+        help='Output directory for extracted sprites (default: extracted_sprites)'
+    )
+    parser.add_argument(
+        '--files', '-f',
+        nargs='*',
+        help='Specific files or glob patterns to process (default: all npcs-* files in spritesheets/)'
+    )
+
+    args = parser.parse_args()
+
+    output_dir = args.output
     spritesheet_dir = "spritesheets"
 
-    # Find all sprite sheet files
-    npc_sprite_sheets = [os.path.join(spritesheet_dir, f) for f in os.listdir(spritesheet_dir) if f.startswith("npcs-") and
-                     (f.endswith(".png") or f.endswith(".webp") or f.endswith(".jpg"))]
+    # Determine which files to process
+    if args.files:
+        # User specified files or patterns
+        npc_sprite_sheets = []
+        for pattern in args.files:
+            # Expand glob patterns
+            matches = glob.glob(pattern)
+            if matches:
+                npc_sprite_sheets.extend(matches)
+            else:
+                # If no matches, check if it's a direct file path
+                if os.path.exists(pattern):
+                    npc_sprite_sheets.append(pattern)
+                else:
+                    print(f"Warning: No files found matching pattern: {pattern}")
+    else:
+        # Default: find all sprite sheet files in spritesheets directory
+        if not os.path.exists(spritesheet_dir):
+            print(f"Error: Directory '{spritesheet_dir}/' not found")
+            print("Please create a 'spritesheets/' directory or specify files with --files")
+            return
+
+        npc_sprite_sheets = [
+            os.path.join(spritesheet_dir, f)
+            for f in os.listdir(spritesheet_dir)
+            if f.startswith("npcs-") and (f.endswith(".png") or f.endswith(".webp") or f.endswith(".jpg"))
+        ]
 
     if not npc_sprite_sheets:
-        print("No sprite sheets found matching pattern 'npcs-*'")
-        print("Usage: python extract_sprites.py [output_directory]")
+        print("No sprite sheets found!")
+        if args.files:
+            print(f"No files matched the specified patterns: {args.files}")
+        else:
+            print(f"No 'npcs-*' files found in '{spritesheet_dir}/' directory")
+        print("\nUsage: python extract_sprites.py --help")
         return
 
-    # Allow custom output directory
-    if len(sys.argv) > 1:
-        output_dir = sys.argv[1]
+    # Remove duplicates and sort
+    npc_sprite_sheets = sorted(set(npc_sprite_sheets))
 
     # Check if optipng is available
     use_optipng = check_optipng_available()
