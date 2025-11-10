@@ -48,6 +48,27 @@ def load_character_names(sheet_path):
 
     return names
 
+def get_bg_colors_image(sheet_path):
+    """
+    Get the path to the background colors image corresponding to the sprite sheet.
+
+    Args:
+        sheet_path: Path to the sprite sheet image
+
+    Returns:
+        Path to the background colors image, or None if file doesn't exist
+    """
+    base_name = os.path.splitext(sheet_path)[0]
+    # png or webp, try both
+    bg_colors_file = f"{base_name}-bg.png"
+
+    if not os.path.exists(bg_colors_file):
+        bg_colors_file = f"{base_name}-bg.webp"
+
+    if not os.path.exists(bg_colors_file):
+        return None
+
+    return Image.open(bg_colors_file)
 
 def sanitize_filename(name):
     """
@@ -120,7 +141,11 @@ def optimize_png_with_optipng(file_path):
         pass
 
 
-def extract_npc_sprites_from_sheet(sheet_path, output_dir, use_optipng=False):
+def extract_npc_sprites_from_sheet(
+    sheet_path,
+    output_dir,
+    use_optipng=False
+):
     """
     Extract all sprites and portraits from a sprite sheet.
 
@@ -131,6 +156,10 @@ def extract_npc_sprites_from_sheet(sheet_path, output_dir, use_optipng=False):
     """
     # Load the sprite sheet
     sheet = Image.open(sheet_path)
+    bg_colors = get_bg_colors_image(sheet_path)
+
+    # create a text file for listing the background colors
+    bg_color_list_file = os.path.join(output_dir, f"bgcolors.txt")
 
     # Verify dimensions
     if sheet.size != (160, 160):
@@ -250,11 +279,24 @@ def extract_npc_sprites_from_sheet(sheet_path, output_dir, use_optipng=False):
             sprite_index = (col - 1) + 1  # portraits 1-4 for sprites 1-4
 
             # Determine filename
+            char_name = f"row{row}_sprite{sprite_index}"
             if character_names and character_index < len(character_names):
                 char_name = sanitize_filename(character_names[character_index])
                 portrait_name = f"{char_name}face.png"
             else:
                 portrait_name = f"{base_name}_row{row}_sprite{sprite_index}_portrait.png"
+
+            bg_color = None
+            if bg_colors:
+                # Apply background color from bg_colors image
+                bg_color = bg_colors.getpixel((x + 16, y + 16))  # Sample center pixel
+
+            # export bg color hex values to a text file along with char name
+            if bg_color:
+                bg_color_hex = '#{:02x}{:02x}{:02x}'.format(bg_color[0], bg_color[1], bg_color[2])
+                with open(bg_color_list_file, 'a') as f:
+                    f.write(f"{char_name}: {bg_color_hex}\n")
+                print(f"    Saved background color: {bg_color_hex} to {bg_color_list_file}")
 
             portrait_path = os.path.join(output_dir, "portraits", portrait_name)
             # Save with optimization: optimize=True for smaller file size
